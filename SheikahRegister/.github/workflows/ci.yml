@@ -1,0 +1,80 @@
+name: CI - Build, Test & Smoke
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SheikahRegister
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v4
+
+      - name: JDK-configuration
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      - name: Build + Tests
+        run: ./mvnw clean verify -B
+
+      - name: Publish test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: SheikahRegister/target/surefire-reports/
+          if-no-files-found: warn
+
+  smoke-test-compose:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SheikahRegister
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v4
+
+      - name: Create test .env
+        run: |
+          cat <<END > .env
+          POSTGRES_DB=sheikah_ci
+          POSTGRES_USER=ci_user
+          POSTGRES_PASSWORD=ci_password
+          END
+
+      - name: docker-compose-up
+        run: docker compose up --build -d
+
+      - name: wait-response
+        run: |
+          for i in $(seq 1 20); do
+            if curl -s -o /dev/null "http://localhost:8080/api/specimen/getBy/00000000-0000-0000-0000-000000000000"; then
+              echo "The application responded correctly."
+              exit 0
+            fi
+            echo "Waiting for the app to start... ($i/20)"
+            sleep 5
+          done
+          echo "The app never responded on time"
+          exit 1
+
+      - name: show-logs
+        if: failure()
+        run: docker compose logs
+
+      - name: shutdown
+        if: always()
+        run: docker compose down -v
