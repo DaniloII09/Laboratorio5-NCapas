@@ -76,4 +76,26 @@ class SpecimenServiceImplTest {
         assertThat(result).isEqualTo(specimenResponse);
         verify(specimenRepository).save(specimenEntity);
     }
+
+    @Test
+    void getSpecimenById_shouldReturnDto_whenExists() {
+        when(specimenRepository.findById(specimenId)).thenReturn(Optional.of(specimenEntity));
+        when(specimenMapper.toDto(specimenEntity)).thenReturn(specimenResponse);
+
+        SpecimenResponse result = specimenService.getSpecimenById(specimenId);
+
+        assertThat(result).isEqualTo(specimenResponse);
+        verify(specimenRepository).findById(specimenId);
+    }
+
+    @Test
+    void getSpecimenById_shouldThrow_whenNotFound() {
+        when(specimenRepository.findById(specimenId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> specimenService.getSpecimenById(specimenId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("not found");
+
+        verify(specimenMapper, never()).toDto(any());
+    }
 }
