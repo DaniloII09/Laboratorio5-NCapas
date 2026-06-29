@@ -2,6 +2,7 @@ package com.example.sheikahregister.services.impl;
 
 import com.example.sheikahregister.common.mappers.SpecimenMapper;
 import com.example.sheikahregister.domain.dto.request.CreateSpecimenRequest;
+import com.example.sheikahregister.domain.dto.request.UpdateSpecimenRequest;
 import com.example.sheikahregister.domain.dto.response.PageableResponse;
 import com.example.sheikahregister.domain.dto.response.specimen.SpecimenResponse;
 import com.example.sheikahregister.domain.entities.Specimen;
@@ -153,5 +154,58 @@ class SpecimenServiceImplTest {
         Sort.Order order = usedPageable.getSort().getOrderFor("dangerLevel");
         assertThat(order).isNotNull();
         assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    void updateSpecimen_shouldUpdateAndReturnDto_whenExists() {
+        UpdateSpecimenRequest updateRequest = UpdateSpecimenRequest.builder()
+                .name("Hinox")
+                .region("Faron")
+                .dangerLevel(6)
+                .isFriendly(false)
+                .build();
+
+        Specimen updatedEntity = Specimen.builder()
+                .id(specimenId)
+                .name("Hinox")
+                .region("Faron")
+                .dangerLevel(6)
+                .isFriendly(false)
+                .build();
+
+        SpecimenResponse updatedResponse = SpecimenResponse.builder()
+                .id(specimenId)
+                .name("Hinox")
+                .region("Faron")
+                .dangerLevel(6)
+                .isFriendly(false)
+                .build();
+
+        when(specimenRepository.findById(specimenId)).thenReturn(Optional.of(specimenEntity));
+        when(specimenMapper.toDto(specimenEntity)).thenReturn(specimenResponse);
+
+        when(specimenMapper.toEntityUpdate(updateRequest, specimenId)).thenReturn(updatedEntity);
+        when(specimenRepository.save(updatedEntity)).thenReturn(updatedEntity);
+        when(specimenMapper.toDto(updatedEntity)).thenReturn(updatedResponse);
+
+        SpecimenResponse result = specimenService.updateSpecimen(specimenId, updateRequest);
+
+        assertThat(result).isEqualTo(updatedResponse);
+        verify(specimenRepository).save(updatedEntity);
+    }
+
+    @Test
+    void updateSpecimen_shouldThrowAndNotSave_whenNotFound() {
+        UpdateSpecimenRequest updateRequest = UpdateSpecimenRequest.builder()
+                .name("Hinox").region("Faron").dangerLevel(6).isFriendly(false)
+                .build();
+
+        when(specimenRepository.findById(specimenId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> specimenService.updateSpecimen(specimenId, updateRequest))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(specimenRepository, never()).save(any());
+        verify(specimenMapper, never()).toEntityUpdate(any(), any());
     }
 }
