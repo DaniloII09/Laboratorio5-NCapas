@@ -208,4 +208,25 @@ class SpecimenServiceImplTest {
         verify(specimenRepository, never()).save(any());
         verify(specimenMapper, never()).toEntityUpdate(any(), any());
     }
+
+    @Test
+    void deleteSpecimen_shouldDeleteAndReturnExisting_whenExists() {
+        when(specimenRepository.findById(specimenId)).thenReturn(Optional.of(specimenEntity));
+        when(specimenMapper.toDto(specimenEntity)).thenReturn(specimenResponse);
+
+        SpecimenResponse result = specimenService.deleteSpecimen(specimenId);
+
+        assertThat(result).isEqualTo(specimenResponse);
+        verify(specimenRepository).deleteById(specimenId);
+    }
+
+    @Test
+    void deleteSpecimen_shouldThrowAndNotDelete_whenNotFound() {
+        when(specimenRepository.findById(specimenId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> specimenService.deleteSpecimen(specimenId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(specimenRepository, never()).deleteById(any());
+    }
 }
